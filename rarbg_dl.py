@@ -17,12 +17,12 @@ headers = {
 SCHEME = 'https'
 HOST = 'rarbg.is'
 home_path = 'torrents.php'
-#baseurl = 'https://rarbg.is/torrents.php'
 
 query = 'the big bang theory'
 verify_pattern = re.compile(r'Please wait while we try to verify your browser...')
 magnet_pattern = re.compile(r'magnet:.*?')
 file = 'test.html'
+
 
 def get_response(url, headers=headers, timeout=30):
     try:
@@ -33,25 +33,16 @@ def get_response(url, headers=headers, timeout=30):
     except RequestException:
         return None
 
-# response = requests.get(baseurl + '?search=' + urllib.parse.quote(query), headers=headers, timeout=30)
 
 def search(query):
     query_arg = 'search=' + urllib.parse.quote(query)
     url = urllib.parse.urlunparse([SCHEME, HOST, home_path, '', query_arg, ''])
     return get_response(url)
 
-# response = get_response(baseurl+'?search='+urllib.parse.quote(query))
-result_response = search(query)
-
-if re.search(verify_pattern, result_response.text):
-    print('Reset Cookie...')
 
 def get_soup(response):
     return BeautifulSoup(response.content, 'lxml')
 
-result_soup = get_soup(result_response)
-with open(file, 'w') as f:
-    f.write(result_soup.prettify())
 
 def get_detail_url(soup):
     result_table = soup.find(attrs={'class': 'lista2t'})
@@ -64,9 +55,6 @@ def get_detail_url(soup):
     detail_url = urllib.parse.urlunparse([SCHEME, HOST, detail_path, '', '', ''])
     return detail_url
 
-detail_url = get_detail_url(result_soup)
-print('detail_url:', detail_url)
-
 
 def get_magnet_link(url):
     detail_response = get_response(detail_url)
@@ -75,9 +63,21 @@ def get_magnet_link(url):
     magnet_link = magnet_a['href']
     return magnet_link
 
-magnet_link = get_magnet_link(detail_url)
-print(magnet_link)
 
-command = 'open -a /Applications/Transmission.app ' + '"' + magnet_link + '"'
-print(command)
-os.system(command)
+if __name__ == '__main__':
+    result_response = search(query)
+    if re.search(verify_pattern, result_response.text):
+        print('Reset Cookie...')
+
+    result_soup = get_soup(result_response)
+    with open(file, 'w') as f:
+        f.write(result_soup.prettify())
+
+    detail_url = get_detail_url(result_soup)
+    print('detail_url:', detail_url)
+
+    magnet_link = get_magnet_link(detail_url)
+    print(magnet_link)
+
+    command = 'open -a /Applications/Transmission.app ' + '"' + magnet_link + '"'
+    os.system(command)
