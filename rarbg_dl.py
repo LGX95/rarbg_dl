@@ -52,11 +52,17 @@ result_soup = get_soup(result_response)
 with open(file, 'w') as f:
     f.write(result_soup.prettify())
 
-result_table = result_soup.find(attrs={'class': 'lista2t'})
-first_tr = result_table.find('tr', attrs={'class': 'lista2'})
-first_a = first_tr.find('a', href=re.compile(r'/torrent/.*'))
-detail_path = first_a['href']
-detail_url = urllib.parse.urlunparse([SCHEME, HOST, detail_path, '', '', ''])
+def get_detail_url(soup):
+    result_table = soup.find(attrs={'class': 'lista2t'})
+    first_tr = result_table.find('tr', attrs={'class': 'lista2'})
+    if first_tr is None:
+        return None
+    first_a = first_tr.find('a', href=re.compile(r'/torrent/.*'))
+    detail_path = first_a['href']
+    detail_url = urllib.parse.urlunparse([SCHEME, HOST, detail_path, '', '', ''])
+    return detail_url
+
+detail_url = get_detail_url(result_soup)
 print('detail_url:', detail_url)
 
 detail_response = get_response(detail_url)
