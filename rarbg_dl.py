@@ -20,7 +20,8 @@ home_path = 'torrents.php'
 #baseurl = 'https://rarbg.is/torrents.php'
 
 query = 'the big bang theory'
-verify_pattern = re.compile('Please wait while we try to verify your browser...')
+verify_pattern = re.compile(r'Please wait while we try to verify your browser...')
+magnet_pattern = re.compile(r'magnet:.*?')
 file = 'test.html'
 
 def get_response(url, headers=headers, timeout=30):
@@ -59,17 +60,22 @@ def get_detail_url(soup):
         return None
     first_a = first_tr.find('a', href=re.compile(r'/torrent/.*'))
     detail_path = first_a['href']
+    print(first_a.text)
     detail_url = urllib.parse.urlunparse([SCHEME, HOST, detail_path, '', '', ''])
     return detail_url
 
 detail_url = get_detail_url(result_soup)
 print('detail_url:', detail_url)
 
-detail_response = get_response(detail_url)
-detail_soup = get_soup(detail_response)
-print(detail_soup.title.string)
-magnet_a = detail_soup.find('a', href=re.compile(r'magnet:.*?'))
-magnet_link = magnet_a['href']
+
+def get_magnet_link(url):
+    detail_response = get_response(detail_url)
+    detail_soup = get_soup(detail_response)
+    magnet_a = detail_soup.find('a', href=magnet_pattern)
+    magnet_link = magnet_a['href']
+    return magnet_link
+
+magnet_link = get_magnet_link(detail_url)
 print(magnet_link)
 
 command = 'open -a /Applications/Transmission.app ' + '"' + magnet_link + '"'
