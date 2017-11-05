@@ -85,6 +85,8 @@ def log(string):
 if __name__ == '__main__':
     print(datetime.now(), 'Program start...')
     logging.info('Program start...')
+    print('Input the keyword: ')
+    query = input()
     while True:
         log('Start request...')
         result_response = search(query)
