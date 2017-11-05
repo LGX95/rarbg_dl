@@ -5,10 +5,20 @@ import re
 import urllib.parse
 import subprocess
 import os
+import time
+import logging
+from datetime import datetime
 
 import requests
 from requests import RequestException
 from bs4 import BeautifulSoup
+
+logging.basicConfig(
+    level=logging.INFO,
+    format = '%(asctime)s %(filename)s : %(levelname)s %(message)s',
+    filename = 'rarbg_dl.log',
+    filemode = 'w'
+    )
 
 headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.75 Safari/537.36',
@@ -58,27 +68,51 @@ def get_detail_url(soup):
 
 
 def get_magnet_link(url):
-    detail_response = get_response(detail_url)
+    while True:
+        detail_response = get_response(detail_url)
+        if detail_response is not None:
+            break
     detail_soup = get_soup(detail_response)
     magnet_a = detail_soup.find('a', href=magnet_pattern)
     magnet_link = magnet_a['href']
     return magnet_link
 
 
+def log(string):
+    logging.info(string)
+
+
 if __name__ == '__main__':
-    result_response = search(query)
-    if re.search(verify_pattern, result_response.text):
-        print('Reset Cookie...')
+    print(datetime.now(), 'Program start...')
+    logging.info('Program start...')
+    while True:
+        log('Start request...')
+        result_response = search(query)
 
-    result_soup = get_soup(result_response)
-    with open(file, 'w') as f:
-        f.write(result_soup.prettify())
+        if result_response is None:
+            # print('Retry...')
+            time.sleep(5)
+            continue
 
-    detail_url = get_detail_url(result_soup)
-    print('detail_url:', detail_url)
+        if re.search(verify_pattern, result_response.text):
+            print('Reset Cookie...')
+            break
 
-    magnet_link = get_magnet_link(detail_url)
-    print(magnet_link)
+        result_soup = get_soup(result_response)
+        with open(file, 'w') as f:
+            f.write(result_soup.prettify())
 
-    command = 'open -a /Applications/Transmission.app ' + '"' + magnet_link + '"'
-    os.system(command)
+        detail_url = get_detail_url(result_soup)
+        if detail_url is None:
+            log('No result, Waiting for retry...')
+            time.sleep(1800)
+            continue
+        else:
+            print('detail_url:', detail_url)
+
+        magnet_link = get_magnet_link(detail_url)
+        print(magnet_link)
+
+        command = 'open -a /Applications/Transmission.app ' + '"' + magnet_link + '"'
+        os.system(command)
+        break
