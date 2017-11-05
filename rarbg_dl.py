@@ -39,6 +39,8 @@ def get_response(url, headers=headers, timeout=30):
     try:
         response = requests.get(url, headers=headers, timeout=timeout)
         if response.status_code == 200:
+            if re.search(verify_pattern, response.text):
+                raise RuntimeError('Reset Cookie!')
             return response
         return None
     except RequestException:
@@ -95,10 +97,6 @@ if __name__ == '__main__':
             # print('Retry...')
             time.sleep(5)
             continue
-
-        if re.search(verify_pattern, result_response.text):
-            print('Reset Cookie...')
-            break
 
         result_soup = get_soup(result_response)
         with open(file, 'w') as f:
