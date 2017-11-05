@@ -45,7 +45,10 @@ result_response = search(query)
 if re.search(verify_pattern, result_response.text):
     print('Reset Cookie...')
 
-result_soup = BeautifulSoup(result_response.content, 'lxml')
+def get_soup(response):
+    return BeautifulSoup(response.content, 'lxml')
+
+result_soup = get_soup(result_response)
 with open(file, 'w') as f:
     f.write(result_soup.prettify())
 
@@ -57,7 +60,7 @@ detail_url = urllib.parse.urlunparse([SCHEME, HOST, detail_path, '', '', ''])
 print('detail_url:', detail_url)
 
 detail_response = get_response(detail_url)
-detail_soup = BeautifulSoup(detail_response.content, 'lxml')
+detail_soup = get_soup(detail_response)
 print(detail_soup.title.string)
 magnet_a = detail_soup.find('a', href=re.compile(r'magnet:.*?'))
 magnet_link = magnet_a['href']
