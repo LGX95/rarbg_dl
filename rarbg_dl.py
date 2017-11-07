@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+通过关键字搜索 rarbg.is 发布的资源，并获取第一个搜索结果的磁力链接，
+再打开 Mac 上的 Transmission 添加到下载列表中。
+如果没有搜索结果，一段时间后再请求搜索，直到添加下载后退出执行。
+"""
+
+__author__ = 'LGX95'
+
 import re
 import urllib.parse
 import subprocess
