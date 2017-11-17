@@ -5,21 +5,35 @@
 通过关键字搜索 rarbg.is 发布的资源，并获取第一个搜索结果的磁力链接，
 再打开 Mac 上的 Transmission 添加到下载列表中。
 如果没有搜索结果，一段时间后再请求搜索，直到添加下载后退出执行。
+如果需要验证浏览器，获取新的Cookies再请求
 """
 
 __author__ = 'LGX95'
 
-import re
-import urllib.parse
-import subprocess
-import os
-import time
 import logging
+import os
+import random
+import re
+import subprocess
+import time
+import urllib.parse
+
 from datetime import datetime
+from io import BytesIO
 
 import requests
-from requests import RequestException
+import pytesseract
+
 from bs4 import BeautifulSoup
+from PIL import Image
+from requests import RequestException
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from headers import headers
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,11 +41,6 @@ logging.basicConfig(
     filename = 'rarbg_dl.log',
     filemode = 'w'
     )
-
-headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.75 Safari/537.36',
-        'Cookie': 'skt=w73n4q3zkt; skt=w73n4q3zkt; q2bquVJn=qCBnZk87; expla2=1%7CSat%2C%2004%20Nov%202017%2017%3A29%3A45%20GMT; LastVisit=1509795476; q2bquVJn=qCBnZk87; tcc; aby=2'
-        }
 
 SCHEME = 'https'
 HOST = 'rarbg.is'
@@ -41,6 +50,71 @@ query = 'the big bang theory'
 verify_pattern = re.compile(r'Please wait while we try to verify your browser...')
 magnet_pattern = re.compile(r'magnet:.*?')
 file = 'test.html'
+
+
+def get_cookie_string():
+    """通过 Selenium 获取新的Cookie，并返回一个Cookie的字符串
+
+    Returns:
+        以一个字符串的形式返回Cookie
+    """
+    url = urllib.parse.urlunparse([SCHEME, HOST, home_path, '', '', ''])
+    # 创建一个新的 Selenium WebDriver
+    driver = webdriver.PhantomJS(executable_path='/usr/local/bin/phantomjs')
+    # driver = webdriver.Firefox()
+    # driver = webdriver.Chrome()
+    driver.get(url)
+    # 创建一个 WebDriverWait 对象
+    wait = WebDriverWait(driver, 30)
+    try:
+        # 等待出现点击跳转的页面
+        click_here = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'a')))
+        # 等待几秒再点击跳转
+        time.sleep(random.randint(2, 5))
+        click_here.click()
+        # 等待填写验证码的表格出现
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, 'form')))
+        # 获得验证码图片的
+        img_elem = driver.find_element_by_xpath('//table[@width="100%"]/tbody/tr/td/img')
+        img_src = img_elem.get_attribute('src')
+        img_rsp = requests.get(img_src)
+        im = Image.open(BytesIO(img_rsp.content))
+        # im = Image.open(BytesIO(img_elem.screenshot_as_png))
+        # 解析验证码
+        solve_string = pytesseract.image_to_string(im)
+        input = driver.find_element_by_id('solve_string')
+        # 填写验证码并回车
+        input.send_keys(solve_string)
+        input.send_keys(Keys.ENTER)
+        # 等待首页出现
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.lista2t')))
+        time.sleep(random.randint(5, 10))
+        # 获取Cookies
+        cookies = driver.get_cookies()
+    finally:
+        driver.quit()
+    cookie_string = ''
+    # 将Cookies对象转换为一个字符串
+    for item in cookies:
+        if item['name'] != '':
+            cookie_string += (item['name'] + '=' + item['value'] + '; ')
+        else:
+            cookie_string += (item['value'] + '; ')
+    return cookie_string.strip()
+
+
+def reset_cookies():
+    """重新获取新的 Cookie，将新的 Cookie 写入 headers.py 文件
+    """
+    cookies = get_cookie_string()
+    # 获取文件内容
+    with open('headers.py', 'r') as f:
+        headers = f.read()
+    # 写入新的Cookies
+    with open('headers.py', 'w') as f:
+        cookies = "'Cookie': '" + cookies + "'"
+        f.write(re.sub(r"'Cookie': '.*?'", cookies, headers))
+
 
 
 def get_response(url, headers=headers, timeout=30):
@@ -62,9 +136,10 @@ def get_response(url, headers=headers, timeout=30):
     try:
         response = requests.get(url, headers=headers, timeout=timeout)
         if response.status_code == 200:
-            # 如果需要验证浏览器，抛出异常
+            # 如果需要验证浏览器，重新获取Cookie并再次请求
             if re.search(verify_pattern, response.text):
-                raise RuntimeError('Reset Cookie!')
+                reset_cookies()
+                get_response(url)
             return response
         return None
     except RequestException:
